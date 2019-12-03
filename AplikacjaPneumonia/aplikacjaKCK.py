@@ -1,9 +1,13 @@
 import numpy as np
 import cv2
-import tensorflow as tf
 from tensorflow.keras.layers import Input, Add, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, AveragePooling2D, MaxPooling2D, GlobalMaxPooling2D
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras.models import Model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.optimizers import SGD , RMSprop
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras import backend as K
 from tkinter import *
 from tkinter.filedialog import askopenfilename
 from PIL import ImageTk, Image
@@ -124,7 +128,7 @@ def ResNet50(input_shape=(150, 150, 3), classes=2):
     classes -- integer, number of classes
 
     Returns:
-    model -- a Model() instance in Keras
+    modelResNet -- a modelResNet() instance in Keras
     """
 
     # Define the input as a tensor with shape input_shape
@@ -174,50 +178,125 @@ def ResNet50(input_shape=(150, 150, 3), classes=2):
     X = Flatten()(X)
     X = Dense(classes, activation='softmax', name='fc' + str(classes), kernel_initializer=glorot_uniform(seed=0))(X)
 
-    # Create model
-    model = Model(inputs=X_input, outputs=X, name='ResNet50')
+    # Create modelResNet
+    modelResNet = Model(inputs=X_input, outputs=X, name='ResNet50')
 
-    return model
+    return modelResNet
 
 def percents(x,pos):
     return '%1.0f' % (x*100)
 
+def vgg():
+    modelVGG = Sequential()
+    modelVGG.add(Conv2D(16, (3, 3), activation='relu', padding="same", input_shape=(200, 200, 3)))
+    modelVGG.add(Conv2D(16, (3, 3), padding="same", activation='relu'))
+    modelVGG.add(MaxPooling2D(pool_size=(2, 2)))
+
+    modelVGG.add(Conv2D(32, (3, 3), activation='relu', padding="same", input_shape=(200, 200, 3)))
+    modelVGG.add(Conv2D(32, (3, 3), padding="same", activation='relu'))
+    modelVGG.add(MaxPooling2D(pool_size=(2, 2)))
+
+    modelVGG.add(Conv2D(64, (3, 3), activation='relu', padding="same"))
+    modelVGG.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
+    modelVGG.add(MaxPooling2D(pool_size=(2, 2)))
+
+    modelVGG.add(Conv2D(96, (3, 3), dilation_rate=(2, 2), activation='relu', padding="same"))
+    modelVGG.add(Conv2D(96, (3, 3), padding="valid", activation='relu'))
+    modelVGG.add(MaxPooling2D(pool_size=(2, 2)))
+
+    modelVGG.add(Conv2D(128, (3, 3), dilation_rate=(2, 2), activation='relu', padding="same"))
+    modelVGG.add(Conv2D(128, (3, 3), padding="valid", activation='relu'))
+    modelVGG.add(MaxPooling2D(pool_size=(2, 2)))
+
+    modelVGG.add(Flatten())
+
+    modelVGG.add(Dense(64, activation=swish_activation))
+    modelVGG.add(Dropout(0.4))
+    modelVGG.add(Dense(2, activation='sigmoid'))
+
+    modelVGG.compile(loss='binary_crossentropy',
+                   optimizer=RMSprop(lr=0.00005),
+                   metrics=['accuracy'])
+    return modelVGG;
+
+def swish_activation(x):
+    return (K.sigmoid(x) * x)
+
+def drawingPlot(data,filename):
+    fig = plt.figure()
+    plot = fig.add_subplot(111)
+    plot.grid(False)
+    plot.set_ylim(0, 1)
+    plot.yaxis.set_major_formatter(FuncFormatter(percents))
+    plot.set_xticks(range(2))
+    plot.set_xticklabels(['zdrowy', 'chory'])
+    plot.set_ylabel("Przypasowanie [%}")
+    this_plot = plot.bar(range(2), data, color="#777777")
+    this_plot[0].set_color('blue')
+    this_plot[1].set_color('red')
+    fig.savefig(filename)
+    plt.clf()
 def main():
-    global model
-    global panel
-    global panel2
-    global status
-    model = ResNet50(input_shape = (200, 200, 3), classes = 2)
-    model.load_weights('weights.hdf5')
+    global modelResNet
+    global modelVGG
+    global imagePanel
+    global ResNetPanel
+    global VGGPanel
+    global statusResNet
+    global statusVGG
+    modelVGG = vgg();
+    modelVGG.load_weights("weightsVGG.hdf5")
+
+    modelResNet = ResNet50(input_shape = (200, 200, 3), classes = 2)
+    modelResNet.load_weights('weightsResNet.hdf5')
+
     m = Tk()
 
-    img = Image.open('C:/Users/Rufus/PycharmProjects/untitled1/przyklad.jpeg')
+    img = Image.open('./przyklad.jpeg')
     img = img.resize((250, 250), Image.ANTIALIAS)
     img = ImageTk.PhotoImage(img)
 
-    wyniki =Image.open('C:/Users/Rufus/PycharmProjects/untitled1/wyniki.jpg')
-    wyniki = wyniki.resize((350, 350), Image.ANTIALIAS)
-    wyniki = ImageTk.PhotoImage(wyniki)
+    wynikiResNet =Image.open('./wynikiResNet.jpg')
+    wynikiResNet = wynikiResNet.resize((350, 350), Image.ANTIALIAS)
+    wynikiResNet = ImageTk.PhotoImage(wynikiResNet)
+
+    wynikiVGG = Image.open('./⁮wynikiVGG.jpg')
+    wynikiVGG = wynikiVGG.resize((350, 350), Image.ANTIALIAS)
+    wynikiVGG = ImageTk.PhotoImage(wynikiVGG)
+
 
     m.title("Wykrywanie zapalenia płuc")
-    panel = Label(m, image=img)
-    panel.grid(row=0,column=1,pady=2,sticky=W+E)
+    titleImage = Label(m, text="Zdjęcie rentgenowskie")
+    titleImage.grid(row=0,column=1,pady=2,sticky=W+E)
+    imagePanel = Label(m, image=img)
+    imagePanel.grid(row=1,column=1, pady=2,sticky=W+E)
 
-    panel2 = Label(m, image=wyniki)
-    panel2.grid(row=0, column=2, pady=2,sticky=W+E)
+    titleResnet = Label(m, text="Wynik sieci ResNet")
+    titleResnet.grid(row=0,column=2,pady=2, sticky=W+E)
+    ResNetPanel = Label(m, image=wynikiResNet)
+    ResNetPanel.grid(row=1, column=2, pady=2, sticky=W + E)
+    statusResNet = Label(m, text="Detekcja zapalenia płuc")
+    statusResNet.grid(row=2, column=2, pady=2, sticky=W+E)
 
-    status = Label(m, text="Detekcja zapalenia płuc")
-    status.grid(row=1, column=2, pady=2, sticky=W+E)
+    titleVGG = Label(m, text="Wynik sieci VGG")
+    titleVGG.grid(row=0, column=3, pady=2, sticky=W + E)
+    VGGPanel = Label(m, image=wynikiVGG)
+    VGGPanel.grid(row=1, column=3, pady=2, sticky=W+E)
+    statusVGG = Label(m, text="Detekcja zapalenia płuc")
+    statusVGG.grid(row=2, column=3, pady=2, sticky=W+E)
 
     w = Button(m, text="Wybierz zdjęcie", command=ask_file_name)
-    w.grid(row=1,column=1,pady=2,sticky=W)
+    w.grid(row=2,column=1,pady=2,sticky=W)
     m.mainloop()
 
 def ask_file_name():
-    global model
-    global panel
-    global panel2
-    global status
+    global modelResNet
+    global modelVGG
+    global imagePanel
+    global ResNetPanel
+    global VGGPanel
+    global statusResNet
+    global stutusVGG
     filepath=""
     filepath=askopenfilename()
     if(filepath!=""):
@@ -226,48 +305,57 @@ def ask_file_name():
         img = img.resize((250, 250), Image.ANTIALIAS)
         img = ImageTk.PhotoImage(img)
 
-        panel.configure(image=img)
-        panel.image = img
+        imagePanel.configure(image=img)
+        imagePanel.image = img
 
         openCVimage = cv2.imread(filepath)
         if openCVimage is not None:
             openCVimage = skimage.transform.resize(openCVimage, (200, 200, 3))
             openCVimage = np.asarray(openCVimage)
-        predictions = model.predict(np.array([openCVimage,]))[0]
-        print(predictions)
-        fig=plt.figure()
-        plot=fig.add_subplot(111)
-        plot.grid(False)
-        plot.set_ylim(0,1)
-        this_plot=plot.bar(range(2), predictions, color="#777777")
-        plot.yaxis.set_major_formatter(FuncFormatter(percents))
-        plot.set_xticks(range(2))
-        plot.set_xticklabels(['zdrowy','chory'])
-        plot.set_ylabel("Przypasowanie [%}")
-        this_plot[0].set_color('blue')
-        this_plot[1].set_color('red')
-        fig.savefig('wyniki.jpg')
-        plt.clf()
+        predictionsResNet = modelResNet.predict(np.array([openCVimage,]))[0]
+        drawingPlot(predictionsResNet,'wynikiResNet.jpg')
 
-        if(predictions[0]>0.75):
-            status.configure(text="Jestes zdrowy!")
-            status.text = "Jestes zdrowy!"
-        elif(predictions[1]>0.75):
-            status.configure(text="Jestes chory!")
-            status.text = "Jestes chory!"
+        if(predictionsResNet[0]>0.75):
+            statusResNet.configure(text="Jestes zdrowy!")
+            statusResNet.text = "Jestes zdrowy!"
+        elif(predictionsResNet[1]>0.75):
+            statusResNet.configure(text="Jestes chory!")
+            statusResNet.text = "Jestes chory!"
         else:
-            status.configure(text="Nie wiadomo co Ci jest!")
-            status.text = "Nie wiadomo co Ci jest!"
+            statusResNet.configure(text="Nie wiadomo co Ci jest!")
+            statusResNet.text = "Nie wiadomo co Ci jest!"
 
-        wyniki =Image.open('C:/Users/Rufus/PycharmProjects/untitled1/wyniki.jpg')
-        wyniki = wyniki.resize((350, 350), Image.ANTIALIAS)
-        wyniki = ImageTk.PhotoImage(wyniki)
+        wynikiResNet = Image.open('./wynikiResNet.jpg')
+        wynikiResNet = wynikiResNet.resize((350, 350), Image.ANTIALIAS)
+        wynikiResNet = ImageTk.PhotoImage(wynikiResNet)
 
-        panel2.configure(image=wyniki)
-        panel2.image=wyniki
+        ResNetPanel.configure(image=wynikiResNet)
+        ResNetPanel.image=wynikiResNet
+
+        predictionsVGG=modelVGG.predict(np.array([openCVimage,]))[0]
+        drawingPlot(predictionsVGG,'⁮wynikiVGG.jpg')
+
+        if (predictionsVGG[0] > 0.75):
+            statusVGG.configure(text="Jestes zdrowy!")
+            statusVGG.text = "Jestes zdrowy!"
+        elif (predictionsVGG[1] > 0.75):
+            statusVGG.configure(text="Jestes chory!")
+            statusVGG.text = "Jestes chory!"
+        else:
+            statusVGG.configure(text="Nie wiadomo co Ci jest!")
+            statusVGG.text = "Nie wiadomo co Ci jest!"
+
+        wynikiVGG = Image.open('./⁮wynikiVGG.jpg')
+        wynikiVGG = wynikiVGG.resize((350, 350), Image.ANTIALIAS)
+        wynikiVGG = ImageTk.PhotoImage(wynikiVGG)
+
+        VGGPanel.configure(image=wynikiVGG)
+        VGGPanel.image = wynikiVGG
     else:
-        status.configure(text="Nie wybrano pliku!")
-        status.text = "Nie wybrano pliku!"
+        statusResNet.configure(text="Nie wybrano pliku!")
+        statusResNet.text = "Nie wybrano pliku!"
+        statusVGG.configure(text="Nie wybrano pliku!")
+        statusVGG.text = "Nie wybrano pliku!"
 
 if __name__=="__main__":
     main()
