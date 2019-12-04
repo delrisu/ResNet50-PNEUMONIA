@@ -1,7 +1,7 @@
 # KCK-PNEUMONIA
 
 ## Sprawozdanie
-[LINK](https://docs.google.com/document/d/1k4TVhS04mTdJP6M1-jXM-oXnTLy2Bw7lwwu7zuC8FPc/edit?usp=sharing)
+[LINK](https://docs.google.com/document/d/1UhSey2q3BWjKYMSnOWuq_MspPRi7kQnZWSUpz20gE_k/edit?usp=sharing)
 
 ## Wagi do sieci 
 [Wagi](https://drive.google.com/drive/folders/1jO8ccMQVX8IM3xUQrZxtcBgEiJXPscCo?usp=sharing)
